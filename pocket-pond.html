@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A tiny interactive pond for quiet moments.">
+  <title>Pocket Pond</title>
+  <style>
+    :root {
+      --sky: #bfe9ff;
+      --sun: #fff2a8;
+      --grass: #b9df84;
+      --grass-deep: #87bf6a;
+      --pond: #66cae5;
+      --pond-deep: #2ea7cc;
+      --ink: #183b45;
+      --paper: rgba(255, 255, 255, .82);
+      --shadow: rgba(30, 84, 92, .18);
+      --accent: #ff7d78;
+      --accent-dark: #d84f57;
+      --button: #fffdf5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 82% 10%, var(--sun) 0 42px, transparent 44px),
+        linear-gradient(var(--sky) 0 48%, var(--grass) 48% 100%);
+      transition: background .7s ease, color .4s ease;
+      overflow-x: hidden;
+    }
+
+    body.night {
+      --sky: #172951;
+      --sun: #f7f0cf;
+      --grass: #335f58;
+      --grass-deep: #244a48;
+      --pond: #2d7191;
+      --pond-deep: #1c536e;
+      --ink: #173746;
+      --paper: rgba(247, 251, 255, .86);
+      background:
+        radial-gradient(circle at 82% 10%, var(--sun) 0 34px, transparent 36px),
+        radial-gradient(circle at 17% 10%, #fff 0 2px, transparent 3px),
+        radial-gradient(circle at 35% 17%, #fff 0 1.5px, transparent 2.5px),
+        radial-gradient(circle at 63% 8%, #fff 0 1.5px, transparent 2.5px),
+        linear-gradient(var(--sky) 0 48%, var(--grass) 48% 100%);
+    }
+
+    button, input { font: inherit; }
+
+    button:focus-visible, input:focus-visible {
+      outline: 4px solid rgba(255, 125, 120, .38);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(980px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 28px 0 34px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      color: #123c55;
+    }
+
+    body.night header { color: #f8fbff; }
+
+    .title-wrap { display: flex; align-items: center; gap: 12px; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.75rem, 5vw, 2.6rem);
+      line-height: 1;
+      letter-spacing: -.04em;
+    }
+
+    .subtitle { margin: 7px 0 0; font-size: .94rem; opacity: .78; }
+
+    .icon-button {
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 16px;
+      background: var(--paper);
+      box-shadow: 0 8px 20px var(--shadow);
+      cursor: pointer;
+      font-size: 1.25rem;
+      transition: transform .18s ease;
+    }
+
+    .icon-button:hover { transform: translateY(-2px) rotate(4deg); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      min-height: 72px;
+      padding: 13px 16px;
+      border: 1px solid rgba(255,255,255,.5);
+      border-radius: 20px;
+      background: var(--paper);
+      box-shadow: 0 10px 26px var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .stat-label { font-size: .78rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; opacity: .6; }
+    .stat-value { display: block; margin-top: 3px; font-size: 1.3rem; font-weight: 900; }
+
+    .pond-card {
+      position: relative;
+      min-height: 465px;
+      border: 8px solid rgba(255,255,255,.42);
+      border-radius: 46% 54% 50% 44% / 42% 42% 58% 58%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.23) 0 5%, transparent 6%),
+        radial-gradient(circle at 72% 68%, rgba(255,255,255,.17) 0 3%, transparent 4%),
+        linear-gradient(145deg, var(--pond), var(--pond-deep));
+      box-shadow: inset 0 -20px 45px rgba(0,66,100,.14), 0 22px 50px rgba(30,84,92,.22);
+      overflow: hidden;
+      isolation: isolate;
+      transition: background .7s ease;
+    }
+
+    .pond-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: repeating-linear-gradient(165deg, transparent 0 26px, rgba(255,255,255,.08) 27px 29px, transparent 30px 48px);
+      animation: water 9s linear infinite;
+    }
+
+    @keyframes water { to { transform: translateX(46px); } }
+
+    .pond-hint {
+      position: absolute;
+      left: 50%;
+      top: 20px;
+      transform: translateX(-50%);
+      z-index: 5;
+      padding: 8px 13px;
+      border-radius: 99px;
+      background: rgba(255,255,255,.78);
+      color: #225467;
+      font-size: .82rem;
+      font-weight: 800;
+      box-shadow: 0 6px 18px rgba(0,70,90,.12);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .critter {
+      position: absolute;
+      z-index: 3;
+      width: 76px;
+      height: 76px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,.34);
+      box-shadow: 0 8px 0 rgba(22,91,112,.14), inset 0 0 0 4px rgba(255,255,255,.2);
+      cursor: pointer;
+      font-size: 2.65rem;
+      line-height: 1;
+      animation: bob 3.8s ease-in-out infinite;
+      transition: transform .2s ease, filter .2s ease;
+      user-select: none;
+    }
+
+    .critter:hover { filter: brightness(1.08); transform: scale(1.07); }
+    .critter.happy { animation: celebrate .65s ease; }
+    .critter[data-name="Pip"] { left: 14%; top: 25%; animation-delay: -.8s; }
+    .critter[data-name="Momo"] { right: 17%; top: 35%; animation-delay: -1.7s; }
+    .critter[data-name="Bean"] { left: 43%; bottom: 18%; animation-delay: -2.5s; }
+
+    @keyframes bob { 0%,100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+    @keyframes celebrate { 0%,100% { transform: scale(1) rotate(0); } 35% { transform: scale(1.22) rotate(-10deg); } 70% { transform: scale(1.12) rotate(10deg); } }
+
+    .lily {
+      position: absolute;
+      z-index: 2;
+      width: 58px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 55% 45% 50% 50%;
+      background: #57b86a;
+      color: white;
+      font-size: 1.65rem;
+      box-shadow: 0 7px 0 rgba(20,100,75,.2);
+      animation: lilyIn .42s cubic-bezier(.2,.8,.3,1.3), bob 4.4s ease-in-out infinite;
+    }
+
+    @keyframes lilyIn { from { opacity: 0; transform: scale(.25) rotate(-25deg); } }
+
+    .ripple, .crumb {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .ripple {
+      width: 24px; height: 12px;
+      border: 3px solid rgba(255,255,255,.62);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: ripple .9s ease-out forwards;
+    }
+
+    @keyframes ripple { to { width: 135px; height: 70px; opacity: 0; } }
+
+    .crumb { font-size: 1.25rem; animation: crumb 1.25s ease-out forwards; }
+    @keyframes crumb { 0% { opacity: 0; transform: translateY(-18px) scale(.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(22px) rotate(25deg); } }
+
+    .toast {
+      position: absolute;
+      left: 50%; bottom: 18px;
+      z-index: 8;
+      max-width: min(90%, 440px);
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: #173f50;
+      color: white;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: 0 10px 26px rgba(10,54,70,.28);
+      opacity: 0;
+      transform: translate(-50%, 15px);
+      transition: opacity .25s ease, transform .25s ease;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .action {
+      min-height: 58px;
+      border: 0;
+      border-radius: 18px;
+      background: var(--button);
+      color: var(--ink);
+      box-shadow: 0 9px 22px var(--shadow);
+      cursor: pointer;
+      font-weight: 900;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .action:hover { transform: translateY(-3px); box-shadow: 0 13px 26px var(--shadow); }
+    .action:active { transform: translateY(0) scale(.98); }
+    .action.primary { background: var(--accent); color: white; }
+    .action.primary:hover { background: var(--accent-dark); }
+
+    .note-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 22px;
+      background: var(--paper);
+      box-shadow: 0 10px 28px var(--shadow);
+    }
+
+    .note-card label { display: block; margin: 0 0 6px 4px; font-size: .82rem; font-weight: 900; opacity: .7; }
+
+    .note-card input {
+      width: 100%;
+      min-height: 46px;
+      border: 2px solid rgba(42,112,130,.14);
+      border-radius: 14px;
+      padding: 0 13px;
+      background: rgba(255,255,255,.76);
+      color: var(--ink);
+    }
+
+    .save-note { align-self: end; min-height: 46px; padding: 0 18px; }
+
+    footer { padding: 16px 4px 0; text-align: center; color: rgba(17,57,69,.7); font-size: .82rem; }
+    body.night footer { color: rgba(255,255,255,.72); }
+
+    @media (max-width: 650px) {
+      .app { width: min(100% - 18px, 620px); padding-top: 18px; }
+      header { align-items: flex-start; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .stat:last-child { grid-column: 1 / -1; }
+      .pond-card { min-height: 420px; border-radius: 34px; }
+      .critter { width: 68px; height: 68px; font-size: 2.35rem; }
+      .critter[data-name="Pip"] { left: 8%; top: 25%; }
+      .critter[data-name="Momo"] { right: 8%; top: 38%; }
+      .critter[data-name="Bean"] { left: 39%; bottom: 17%; }
+      .controls { grid-template-columns: 1fr; }
+      .note-card { grid-template-columns: 1fr; }
+      .save-note { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="title-wrap">
+        <span aria-hidden="true" style="font-size:2.25rem">🪷</span>
+        <div>
+          <h1>Pocket Pond</h1>
+          <p class="subtitle">A little place to tap, tend, and exhale.</p>
+        </div>
+      </div>
+      <button class="icon-button" id="themeButton" type="button" aria-label="Switch to night mode" title="Day / night">🌙</button>
+    </header>
+
+    <section class="stats" aria-label="Pond progress">
+      <div class="stat"><span class="stat-label">Friendship</span><strong class="stat-value" id="friendshipValue">0 💛</strong></div>
+      <div class="stat"><span class="stat-label">Lilies</span><strong class="stat-value" id="lilyValue">0 / 8</strong></div>
+      <div class="stat"><span class="stat-label">Today’s pond thought</span><strong class="stat-value" id="noteValue">Take it slowly.</strong></div>
+    </section>
+
+    <section class="pond-card" id="pond" aria-label="Interactive pond. Tap the water to make ripples or tap a critter to say hello.">
+      <div class="pond-hint">Tap the water or say hello to a friend</div>
+      <button class="critter" type="button" data-name="Pip" aria-label="Say hello to Pip the frog">🐸</button>
+      <button class="critter" type="button" data-name="Momo" aria-label="Say hello to Momo the duck">🐥</button>
+      <button class="critter" type="button" data-name="Bean" aria-label="Say hello to Bean the turtle">🐢</button>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="controls" aria-label="Pond actions">
+      <button class="action primary" id="feedButton" type="button">🍓 Feed the friends</button>
+      <button class="action" id="lilyButton" type="button">🪷 Grow a lily</button>
+      <button class="action" id="rainButton" type="button">💧 Make gentle rain</button>
+    </section>
+
+    <section class="note-card">
+      <div>
+        <label for="noteInput">Leave a tiny thought by the pond</label>
+        <input id="noteInput" maxlength="42" placeholder="Something kind for later…" autocomplete="off">
+      </div>
+      <button class="action save-note" id="saveNoteButton" type="button">Save thought</button>
+    </section>
+
+    <footer>Your pond stays on this device. No sign-in, no internet, no rush.</footer>
+  </main>
+
+  <script>
+    (() => {
+      const pond = document.getElementById('pond');
+      const toast = document.getElementById('toast');
+      const friendshipValue = document.getElementById('friendshipValue');
+      const lilyValue = document.getElementById('lilyValue');
+      const noteValue = document.getElementById('noteValue');
+      const noteInput = document.getElementById('noteInput');
+      const themeButton = document.getElementById('themeButton');
+      const maxLilies = 8;
+      const storageKey = 'pocketPondStateV1';
+      const defaultState = { friendship: 0, lilies: 0, note: 'Take it slowly.', night: false };
+      const messages = {
+        Pip: ['Pip thinks you have excellent pond manners.', 'Pip offers one tiny, enthusiastic ribbit.', 'Pip is glad you stopped by.'],
+        Momo: ['Momo has declared this a very good puddle.', 'Momo waddles in a proud little circle.', 'Momo saved you the shiniest pebble.'],
+        Bean: ['Bean believes slow progress still counts.', 'Bean has nowhere urgent to be.', 'Bean gives you a very small, very sincere nod.']
+      };
+      let state = loadState();
+      let toastTimer;
+
+      function loadState() {
+        try {
+          return { ...defaultState, ...JSON.parse(localStorage.getItem(storageKey) || '{}') };
+        } catch {
+          return { ...defaultState };
+        }
+      }
+
+      function saveState() {
+        try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+      }
+
+      function updateUI() {
+        friendshipValue.textContent = `${state.friendship} 💛`;
+        lilyValue.textContent = `${state.lilies} / ${maxLilies}`;
+        noteValue.textContent = state.note;
+        document.body.classList.toggle('night', state.night);
+        themeButton.textContent = state.night ? '☀️' : '🌙';
+        themeButton.setAttribute('aria-label', state.night ? 'Switch to day mode' : 'Switch to night mode');
+        document.querySelectorAll('.lily').forEach((lily) => lily.remove());
+        for (let i = 0; i < state.lilies; i += 1) addLily(i, false);
+      }
+
+      function addRipple(x, y) {
+        const ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        ripple.style.left = `${x}px`;
+        ripple.style.top = `${y}px`;
+        pond.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 950);
+      }
+
+      function addLily(index = state.lilies - 1, announce = true) {
+        const spots = [
+          [17, 69], [76, 20], [68, 76], [28, 48],
+          [52, 24], [85, 55], [9, 42], [48, 73]
+        ];
+        const [x, y] = spots[index % spots.length];
+        const lily = document.createElement('span');
+        lily.className = 'lily';
+        lily.setAttribute('aria-hidden', 'true');
+        lily.style.left = `${x}%`;
+        lily.style.top = `${y}%`;
+        lily.style.animationDelay = `${index * -.24}s`;
+        lily.textContent = index % 3 === 2 ? '🌸' : '🪷';
+        pond.appendChild(lily);
+        if (announce) showToast('A new lily found a sunny spot.');
+      }
+
+      function randomPondPoint() {
+        return {
+          x: 45 + Math.random() * Math.max(80, pond.clientWidth - 90),
+          y: 75 + Math.random() * Math.max(120, pond.clientHeight - 150)
+        };
+      }
+
+      pond.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('button')) return;
+        const box = pond.getBoundingClientRect();
+        addRipple(event.clientX - box.left, event.clientY - box.top);
+      });
+
+      document.querySelectorAll('.critter').forEach((critter) => {
+        critter.addEventListener('click', () => {
+          const name = critter.dataset.name;
+          state.friendship += 1;
+          critter.classList.remove('happy');
+          void critter.offsetWidth;
+          critter.classList.add('happy');
+          showToast(messages[name][Math.floor(Math.random() * messages[name].length)]);
+          updateNumbersOnly();
+          saveState();
+        });
+      });
+
+      function updateNumbersOnly() {
+        friendshipValue.textContent = `${state.friendship} 💛`;
+        lilyValue.textContent = `${state.lilies} / ${maxLilies}`;
+      }
+
+      document.getElementById('feedButton').addEventListener('click', () => {
+        for (let i = 0; i < 12; i += 1) {
+          const crumb = document.createElement('span');
+          const point = randomPondPoint();
+          crumb.className = 'crumb';
+          crumb.style.left = `${point.x}px`;
+          crumb.style.top = `${point.y}px`;
+          crumb.style.animationDelay = `${i * 35}ms`;
+          crumb.textContent = ['•', '·', '✦'][i % 3];
+          pond.appendChild(crumb);
+          setTimeout(() => crumb.remove(), 1800);
+        }
+        state.friendship += 3;
+        updateNumbersOnly();
+        saveState();
+        showToast('Snack time! Everyone is delighted.');
+      });
+
+      document.getElementById('lilyButton').addEventListener('click', () => {
+        if (state.lilies >= maxLilies) {
+          showToast('The pond is already wonderfully full of lilies.');
+          return;
+        }
+        state.lilies += 1;
+        addLily(state.lilies - 1);
+        updateNumbersOnly();
+        saveState();
+      });
+
+      document.getElementById('rainButton').addEventListener('click', () => {
+        let drops = 0;
+        const rain = setInterval(() => {
+          const point = randomPondPoint();
+          addRipple(point.x, point.y);
+          drops += 1;
+          if (drops >= 10) clearInterval(rain);
+        }, 85);
+        showToast('Pitter patter. The pond feels refreshed.');
+      });
+
+      themeButton.addEventListener('click', () => {
+        state.night = !state.night;
+        document.body.classList.toggle('night', state.night);
+        themeButton.textContent = state.night ? '☀️' : '🌙';
+        themeButton.setAttribute('aria-label', state.night ? 'Switch to day mode' : 'Switch to night mode');
+        saveState();
+        showToast(state.night ? 'The fireflies are almost awake.' : 'Good morning, little pond.');
+      });
+
+      function saveNote() {
+        const text = noteInput.value.trim();
+        if (!text) {
+          showToast('Write a tiny thought first.');
+          noteInput.focus();
+          return;
+        }
+        state.note = text;
+        noteValue.textContent = text;
+        noteInput.value = '';
+        saveState();
+        showToast('Your thought is resting safely by the pond.');
+      }
+
+      document.getElementById('saveNoteButton').addEventListener('click', saveNote);
+      noteInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') saveNote();
+      });
+
+      updateUI();
+    })();
+  </script>
+</body>
+</html>
